@@ -17,7 +17,7 @@ And add this dependency in your pom.xml
 </dependency>
 ```
 
-This library is not available yet in maven central repository, it is coming son.<br/>
+This library is not available yet in maven central repository, it is coming soon.<br/>
 If you not use maven. You can also build the jar and add in classpath of the Java app.<br/>
 To build jar package, you need install maven and execute the command:
 ```
