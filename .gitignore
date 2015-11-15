@@ -1,0 +1,11 @@
+classes/
+target/
+*.class
+*.jar
+.settings/
+.classpath
+.project
+*.~*
+*.lock
+*.DS_Store
+
