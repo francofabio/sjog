@@ -51,7 +51,7 @@ import br.com.binarti.sjog.ObjectGraphBuilder;
 ...
 
 private static class Order {
-    private int id;
+  private int id;
   private Person customer;
   private Date date;
   private double amount;
@@ -67,8 +67,8 @@ Order order = new Order(129, new Person("Kane"), new Date(), 1650d);
 order.addItem(new Item(1, "MacBook pro 13"));
 order.addItem(new Item(2, "iPad Air 2"));
 ObjectGraph orderObjectGraph = new ObjectGraphBuilder(Order.class)
-        .include("customer") //include all properties of the java basic type in customer
-        .include("itens") //include all properties of the java basic type in itens (considering generic type of the collection or the collection content
+        .include("customer") //include all properties of the java basic type presents in customer object
+        .include("itens") //include all properties of the java basic type presents in itens (considering generic type of the collection or the collection content)
         .build(order);
 Integer orderId = orderObjectGraph.get("id"); //get id property of the order
 String customerName = orderObjectGraph.get("customer.name"); //get the name of the customer in order
