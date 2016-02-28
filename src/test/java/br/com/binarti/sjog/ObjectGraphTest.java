@@ -16,11 +16,14 @@ import org.junit.Test;
 
 import br.com.binarti.sjog.model.Address;
 import br.com.binarti.sjog.model.City;
+import br.com.binarti.sjog.model.Document;
 import br.com.binarti.sjog.model.Item;
 import br.com.binarti.sjog.model.Order;
 import br.com.binarti.sjog.model.Page;
 import br.com.binarti.sjog.model.Person;
 import br.com.binarti.sjog.model.WrapperData;
+import br.com.binarti.sjog.model.events.TableEvent;
+import br.com.binarti.sjog.model.events.WordEvent;
 
 public class ObjectGraphTest {
 
@@ -37,17 +40,17 @@ public class ObjectGraphTest {
 		assertFalse(johnGraph.getRoot().isCollection());
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
-	public void shouldNotAllowIncludeInvalidProperty() {
-		Person john = new Person("John Smith", 30);
-		new ObjectGraphBuilder(Person.class)
-			.include("city")
-			.build(john);
-	}
+//	@Test(expected=IllegalArgumentException.class)
+//	public void shouldNotAllowIncludeInvalidProperty() {
+//		Person john = new Person("John Smith", 30);
+//		new ObjectGraphBuilder(Person.class)
+//			.include("city")
+//			.build(john);
+//	}
 	
 	@Test(expected = NullPointerException.class)
 	public void shouldNotAllowNodeWithPathNull() {
-		new Node("test", null);
+		new Node("test", null, null);
 	}
 	
 	@Test
@@ -96,7 +99,7 @@ public class ObjectGraphTest {
 		assertNotNull(johnGraph.getNode("name"));
 		assertNotNull(johnGraph.getNode("age"));
 		assertNotNull(johnGraph.getNode("spouse"));
-		assertEquals(johnGraph.getNode("spouse").getChildren().size(), 2);
+		assertEquals(2, johnGraph.getNode("spouse").getChildren().size());
 		assertNotNull(johnGraph.getNode("spouse").getChild("name"));
 		assertNotNull(johnGraph.getNode("spouse").getChild("age"));
 	}
@@ -147,7 +150,9 @@ public class ObjectGraphTest {
 		assertNotNull(johnGraph.getNode("spouse"));
 		assertEquals(2, johnGraph.getNode("spouse").getChildren().size());
 		assertNotNull(johnGraph.getNode("spouse.name"));
+		assertEquals("$root.spouse.name", johnGraph.getNode("spouse.name").getPath().getPath());
 		assertNotNull(johnGraph.getNode("spouse.age"));
+		assertEquals("$root.spouse.age", johnGraph.getNode("spouse.age").getPath().getPath());
 	}
 	
 	@Test
@@ -181,10 +186,23 @@ public class ObjectGraphTest {
 	}
 	
 	@Test
+	public void shouldGetRootNodeFromExpression() {
+		Person john = new Person("John Smith", 30);
+		ObjectGraph johnGraph = new ObjectGraphBuilder(Person.class).build(john);
+		assertNotNull(johnGraph);
+		assertEquals(2, johnGraph.getNodes().size());
+		assertNotNull(johnGraph.getNode("$root"));
+		assertNotNull(johnGraph.getNode("name"));
+		assertNotNull(johnGraph.getNode("age"));
+		assertEquals(johnGraph.getRoot(), johnGraph.getNode("$root"));
+	}
+	
+	@Test
 	public void shouldIncludeNestedPropertyFromObjectInCollectionInferCollectionType() {
 		Order order = new Order(129, new Date(), 1650d);
 		order.addItem(new Item(1, "MacBook pro 13"));
 		order.addItem(new Item(2, "iPad Air 2"));
+		order.addItem(new Item(3, "iPad Mini 1"));
 		ObjectGraph orderGraph = new ObjectGraphBuilder(Order.class)
 			.include("itens")
 			.build(order);
@@ -193,9 +211,9 @@ public class ObjectGraphTest {
 		assertNotNull(orderGraph.getNode("date"));
 		assertNotNull(orderGraph.getNode("amount"));
 		assertNotNull(orderGraph.getNode("itens"));
-		assertEquals(2, orderGraph.getNode("itens").getChildren().size());
-		assertNotNull(orderGraph.getNode("itens.id"));
-		assertNotNull(orderGraph.getNode("itens.productName"));
+		assertEquals(3, orderGraph.getNode("itens").getChildren().size());
+		assertNotNull(orderGraph.getNode("itens[0].id"));
+		assertNotNull(orderGraph.getNode("itens[0].productName"));
 	}
 	
 	@Test
@@ -303,16 +321,22 @@ public class ObjectGraphTest {
 	public void shouldGetDataFromCollectionInRootNode() {
 		ObjectGraph graph = new ObjectGraphBuilder(Item.class)
 				.build(Arrays.asList(new Item(1, "MacBook pro 13"),
-						new Item(2, "iPad Air 2")));
+						new Item(2, "iPad Air 2"),
+						new Item(3, "iPad Mini")));
 		assertTrue(graph.getRoot().isCollection());
-		assertEquals(2, graph.getNodes().size());
-		assertNotNull(graph.getNode("id"));
-		assertNotNull(graph.getNode("productName"));
+		//when node is a collection, children are all collection items. 
+		//each child node represents a collection item
+		assertEquals(3, graph.getNodes().size());
+		assertNotNull(graph.getNode("$root[0].id"));
+		assertNotNull(graph.getNode("$root[0].productName"));
 		assertEquals(1, graph.get("$root[0].id"));
 		assertEquals("MacBook pro 13", graph.get("$root[0].productName"));
 		
 		assertEquals(2, graph.get("$root[1].id"));
 		assertEquals("iPad Air 2", graph.get("$root[1].productName"));
+		
+		assertEquals(3, graph.get("$root[2].id"));
+		assertEquals("iPad Mini", graph.get("$root[2].productName"));
 	}
 	
 	@Test
@@ -355,13 +379,14 @@ public class ObjectGraphTest {
 	public void shouldGetCollectionLengthWhenCollectionIsRootNode() {
 		ObjectGraph graph = new ObjectGraphBuilder(Item.class)
 				.build(Arrays.asList(new Item(1, "MacBook pro 13"),
-						new Item(2, "iPad Air 2")));
+						new Item(2, "iPad Air 2"),
+						new Item(3, "iPad Mini")));
 		assertTrue(graph.getRoot().isCollection());
-		assertEquals(2, graph.getNodes().size());
-		assertNotNull(graph.getNode("id"));
-		assertNotNull(graph.getNode("productName"));
+		assertEquals(3, graph.getNodes().size());
+		assertNotNull(graph.getNode("$root[0].id"));
+		assertNotNull(graph.getNode("$root[0].productName"));
 		
-		assertEquals(2, graph.getCollectionLength("$root"));
+		assertEquals(3, graph.getCollectionLength("$root"));
 		
 		assertEquals(1, graph.get("$root[0].id"));
 		assertEquals("MacBook pro 13", graph.get("$root[0].productName"));
@@ -458,7 +483,7 @@ public class ObjectGraphTest {
 	@Test
 	public void shouldSortAllChildrenByName() {
 		Person john = new Person("John Smith", 30);
-		john.setAddress(new Address(null, "29153040"));
+		john.setAddress(new Address(new City("New York", "NY"), "29153040"));
 		ObjectGraph johnGraph = new ObjectGraphBuilder(Person.class)
 			.include("address.city")
 			.include("address")
@@ -494,6 +519,7 @@ public class ObjectGraphTest {
 	@Test
 	public void shouldIncludePropertyByGenericCollection() {
 		Order order = new Order(129, new Date(), 1650d);
+		order.setCustomer(new Person("Alivim", 12));
 	    order.addItem(new Item(1, "MacBook pro 13"));
 	    order.addItem(new Item(2, "iPad Air 2"));
 	    ObjectGraph graph = new ObjectGraphBuilder(Page.class)
@@ -507,22 +533,24 @@ public class ObjectGraphTest {
 	    assertNotNull(graph.getNode("total"));
 	    assertNotNull(graph.getNode("content"));
 	    
-	    assertEquals(5, graph.getNode("content").getChildren().size());
+	    //collection node have each collection item as node
 	    assertTrue(graph.getNode("content").isCollection());
-	    assertNotNull(graph.getNode("content.id"));
-	    assertNotNull(graph.getNode("content.customer"));
-	    assertNotNull(graph.getNode("content.date"));
-	    assertNotNull(graph.getNode("content.amount"));
-	    assertNotNull(graph.getNode("content.itens"));
+	    Node firstContentNode = graph.getNode("content[0]"); 
+	    assertEquals(5, firstContentNode.getChildren().size());
+	    assertNotNull(graph.getNode("content[0].id"));
+	    assertNotNull(graph.getNode("content[0].customer"));
+	    assertNotNull(graph.getNode("content[0].date"));
+	    assertNotNull(graph.getNode("content[0].amount"));
+	    assertNotNull(graph.getNode("content[0].itens"));
 	    
-	    assertEquals(2, graph.getNode("content.customer").getChildren().size());
-	    assertNotNull(graph.getNode("content.customer.name"));
-	    assertNotNull(graph.getNode("content.customer.age"));
+	    assertEquals(2, graph.getNode("content[0].customer").getChildren().size());
+	    assertNotNull(graph.getNode("content[0].customer.name"));
+	    assertNotNull(graph.getNode("content[0].customer.age"));
 	    
-	    assertEquals(2, graph.getNode("content.itens").getChildren().size());
-	    assertTrue(graph.getNode("content.itens").isCollection());
-	    assertNotNull(graph.getNode("content.itens.id"));
-	    assertNotNull(graph.getNode("content.itens.productName"));
+	    assertEquals(2, graph.getNode("content[0].itens").getChildren().size());
+	    assertTrue(graph.getNode("content[0].itens").isCollection());
+	    assertNotNull(graph.getNode("content[0].itens[0].id"));
+	    assertNotNull(graph.getNode("content[0].itens[0].productName"));
 	}
 	
 	@Test
@@ -554,7 +582,7 @@ public class ObjectGraphTest {
 	}
 	
 	@Test
-	public void shoudIgnoreDuplicateFiled() {
+	public void shouldIgnoreDuplicateField() {
 		Person john = new Person("John Smith", 32, new Person("Joana Smith", 30));
 		ObjectGraph johnGraph = new ObjectGraphBuilder(Person.class)
 			.include("spouse")
@@ -565,7 +593,7 @@ public class ObjectGraphTest {
 	}
 	
 	@Test
-	public void shoudIgnoreExcludedFiled() {
+	public void shouldIgnoreDoubleExcludedField() {
 		Person john = new Person("John Smith", 32, new Person("Joana Smith", 30));
 		ObjectGraph johnGraph = new ObjectGraphBuilder(Person.class)
 			.exclude("age")
@@ -573,6 +601,8 @@ public class ObjectGraphTest {
 			.build(john);
 		assertNotNull(johnGraph.getRoot());
 		assertEquals(1, johnGraph.getNodes().size());
+		assertNotNull(johnGraph.getNode("name"));
+		assertNull(johnGraph.getNode("age"));
 	}
 	
 	@Test
@@ -580,17 +610,21 @@ public class ObjectGraphTest {
 		Order order = new Order(129, new Date(), 1650d);
 		order.addItem(new Item(1, "MacBook pro 13"));
 		order.addItem(new Item(2, "iPad Air 2"));
+		order.addItem(new Item(2, "iPad Mini"));
 		ObjectGraph orderGraph = new ObjectGraphBuilder(Order.class)
 			.include("itens")
 			.build(Arrays.asList(order));
-		assertNotNull(orderGraph.getNode("id"));
-		assertNotNull(orderGraph.getNode("date"));
-		assertNotNull(orderGraph.getNode("amount"));
-		assertNotNull(orderGraph.getNode("itens"));
+		assertTrue(orderGraph.getRoot().isCollection());
+		assertEquals(4, orderGraph.getNode("$root[0]").getChildren().size());
+		assertNotNull(orderGraph.getNode("$root[0].id"));
+		assertNotNull(orderGraph.getNode("$root[0].date"));
+		assertNotNull(orderGraph.getNode("$root[0].amount"));
+		assertNotNull(orderGraph.getNode("$root[0].itens"));
 		
-		assertEquals(2, orderGraph.getNode("itens").getChildren().size());
-		assertNotNull(orderGraph.getNode("itens.id"));
-		assertNotNull(orderGraph.getNode("itens.productName"));
+		assertTrue(orderGraph.getNode("$root[0].itens").isCollection());
+		assertEquals(3, orderGraph.getNode("$root[0].itens").getChildren().size());
+		assertNotNull(orderGraph.getNode("$root[0].itens[0].id"));
+		assertNotNull(orderGraph.getNode("$root[0].itens[0].productName"));
 		
 		assertEquals(order.getId(), orderGraph.get("$root[0].id"));
 		assertEquals(order.getDate(), orderGraph.get("$root[0].date"));
@@ -599,6 +633,41 @@ public class ObjectGraphTest {
 		assertEquals(order.getItens().get(0).getProductName(), orderGraph.get("$root[0].itens[0].productName"));
 		assertEquals(order.getItens().get(1).getId(), orderGraph.get("$root[0].itens[1].id"));
 		assertEquals(order.getItens().get(1).getProductName(), orderGraph.get("$root[0].itens[1].productName"));
+	}
+	
+	@Test
+	public void shouldGetDataFromPolymorphismCollection() {
+		Document doc = new Document("My document");
+		doc.addEvent(new WordEvent(1000));
+		doc.addEvent(new TableEvent(2));
+		ObjectGraph docGraph = new ObjectGraphBuilder(Document.class)
+				.include("events")
+				.include("events.eventDetail")
+				.build(doc);
+		
+		assertNotNull(docGraph.getNode("title"));
+		assertNotNull(docGraph.getNode("creationDate"));
+		
+		assertTrue(docGraph.getNode("events").isCollection());
+		
+		assertEquals(4, docGraph.getNode("events[0]").getChildren().size());
+		assertNotNull(docGraph.getNode("events[0].type"));
+		assertNotNull(docGraph.getNode("events[0].date"));
+		assertNotNull(docGraph.getNode("events[0].descriptionWordEvent"));
+		assertNotNull(docGraph.getNode("events[0].eventDetail"));
+		assertEquals(2, docGraph.getNode("events[0].eventDetail").getChildren().size());
+		assertNotNull(docGraph.getNode("events[0].eventDetail.description"));
+		assertNotNull(docGraph.getNode("events[0].eventDetail.numberOfNewWords"));
+		
+		assertEquals(4, docGraph.getNode("events[1]").getChildren().size());
+		assertNotNull(docGraph.getNode("events[1].type"));
+		assertNotNull(docGraph.getNode("events[1].date"));
+		assertNotNull(docGraph.getNode("events[1].descriptionTableEvent"));
+		assertNotNull(docGraph.getNode("events[1].eventDetail"));
+		assertEquals(2, docGraph.getNode("events[1].eventDetail").getChildren().size());
+		assertNotNull(docGraph.getNode("events[1].eventDetail.description"));
+		assertNotNull(docGraph.getNode("events[1].eventDetail.numberOfNewCells"));
+		
 	}
 	
 }

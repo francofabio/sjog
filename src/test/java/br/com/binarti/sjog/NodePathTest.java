@@ -76,7 +76,8 @@ public class NodePathTest {
 	@Test
 	public void shouldIdentifyCollectionExpression() {
 		NodePath path = NodePath.create("itens[0].id");
-		assertTrue(path.getParent().isCollection());
+		assertTrue(path.getParent().getParent().isCollection());
+		assertTrue(path.getParent().isCollectionItem());
 		assertEquals(0, path.getParent().getIndex());
 		assertEquals("id", path.getNode());
 	}

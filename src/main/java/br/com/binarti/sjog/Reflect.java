@@ -41,11 +41,50 @@ public class Reflect {
 					getters.add(method);
 				}
 			}
+			removeOverridden(getters);
 			cachedMethods.put(gettersCacheKey, getters);
 		}
 		return getters;
 	}
 	
+	private int findMethod(List<Method> methods, Method method, int exceptIndex) {
+		for (int i = 0; i < methods.size(); i++) {
+			Method m = methods.get(i);
+			if (m.getName().equals(method.getName()) && Arrays.equals(m.getParameterTypes(), method.getParameterTypes())) {
+				if (i != exceptIndex) {
+					return i;
+				}
+			}
+		}
+		return -1;
+	}
+	
+	private boolean isOverridden(Method m1, Method m2) {
+		Class<?> declaredClassM1 = m1.getDeclaringClass();
+		Class<?> declaredClassM2 = m2.getDeclaringClass();
+		return declaredClassM2.isAssignableFrom(declaredClassM1);
+	}
+	
+	private void removeOverridden(List<Method> methods) {
+		List<Integer> indexToRemove = new ArrayList<>();
+		List<Method> clone = new ArrayList<>(methods);
+		for (int i = 0; i < clone.size(); i++) {
+			if (indexToRemove.contains(i)) continue;
+			Method m = clone.get(i);
+			int indexFound = findMethod(clone, m, i);
+			if (indexFound > -1) {
+				if (isOverridden(m, clone.get(indexFound))) {
+					indexToRemove.add(indexFound);
+				}
+			}
+		}
+		if (!indexToRemove.isEmpty()) {
+			for (Integer index : indexToRemove) {
+				methods.remove(index.intValue());
+			}
+		}
+	}
+
 	public Method getter(String field) {
 		return getters().stream().filter(m -> propertyName(m).equals(field)).findFirst().orElse(null);
 	}
@@ -57,9 +96,13 @@ public class Reflect {
 	public static String propertyName(Method method) {
 		Matcher m = EXTRACT_PROPERTY_NAME_PATTERN.matcher(method.getName());
 		if (m.find()) {
-			return Introspector.decapitalize(firstGroupNonNull(m));
+			return decapitalize(firstGroupNonNull(m));
 		}
 		return method.getName();
+	}
+	
+	public static String decapitalize(String name) {
+		return Introspector.decapitalize(name);
 	}
 	
 	private static String firstGroupNonNull(Matcher m) {

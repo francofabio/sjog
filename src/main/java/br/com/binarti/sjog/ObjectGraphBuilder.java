@@ -1,9 +1,9 @@
 package br.com.binarti.sjog;
 
+import static br.com.binarti.sjog.Node.ROOT_NODE;
+
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -16,6 +16,7 @@ import java.util.TreeSet;
  */
 public class ObjectGraphBuilder {
 
+	@SuppressWarnings("unused")
 	private Class<?> rootClass;
 	private ObjectGraphPredicate predicate;
 	private Set<NodePath> includes;
@@ -52,7 +53,7 @@ public class ObjectGraphBuilder {
 	 * @param value <code>true</code> Indicates that all primitive properties in root node should be included.
 	 */
 	public ObjectGraphBuilder autoIncludePrimitivesFromRoot(boolean value) {
-		autoIncludePrimitives.put(ObjectGraph.ROOT_NODE, value);
+		autoIncludePrimitives.put(ROOT_NODE, value);
 		return this;
 	}
 	
@@ -83,7 +84,7 @@ public class ObjectGraphBuilder {
 	 * Exclude all 'primitive' properties children of the root node
 	 */
 	public ObjectGraphBuilder excludePrimitivesFromRoot() {
-		return exclude("^.*");
+		return exclude(ObjectGraphHelper.EXPR_EXCLUDE_ALL_PRIMITIVES_FROM_ROOT);
 	}
 	
 	/**
@@ -102,21 +103,8 @@ public class ObjectGraphBuilder {
 	 * @return An object graph for a given object
 	 */
 	public ObjectGraph build(Object root) {
-		ObjectGraphMapper mapper = new ObjectGraphMapper(rootClass, root, predicate);
-		//Configure auto include primitives
-		for (Entry<String, Boolean> e : autoIncludePrimitives.entrySet()) {
-			mapper.autoIncludePrimitives(e.getKey(), e.getValue());
-		}
-		mapper.expandRoot();
-		for (NodePath path : includes) {
-			mapper.includeAndExpand(path);
-		}
-		for (String name : excludes) {
-			mapper.exclude(name);
-		}
-		boolean rootIsCollection = mapper.rootIsCollection();
-		List<NodePath> allProperties = mapper.getProperties();
-		ObjectGraph objectGraph = new ObjectGraph(root, rootIsCollection, allProperties.toArray(new NodePath[0]));
+		ObjectGraphContext context = new ObjectGraphContext(predicate, includes, excludes, autoIncludePrimitives);
+		ObjectGraph objectGraph = new ObjectGraph(root, context);
 		return objectGraph;
 	}
 

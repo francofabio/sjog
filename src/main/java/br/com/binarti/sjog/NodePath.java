@@ -1,6 +1,5 @@
 package br.com.binarti.sjog;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -22,13 +21,29 @@ public class NodePath {
 	private String path;
 	private NodePath parent;
 	
-	private Method method;
 	private boolean collection;
+	private boolean collectionItem;
 	private boolean insideCollection;
 	private int index;
 	private Class<?> type;
-	private Object value;
-	private Object firstNonNullValueInCollection;
+	
+	/**
+	 * Create a node path representation in graph notation.<br>
+	 * 
+	 * @param node Node item path
+	 * @param parent Parent of the node. If node not got a parent, pass <code>null</code>
+	 * @param collection Determine if this node is a collection
+	 * @param collectionItem Determine if this node is a collection item
+	 * @param index Index of the collection item. Use -1 if item is not a collection item.
+	 */
+	private NodePath(String node, NodePath parent, boolean collection, boolean collectionItem, int index) {
+		this.node = node;
+		this.parent = parent;
+		this.collection = collection;
+		this.collectionItem = collectionItem;
+		this.index = index;
+		determineFullPath();
+	}
 	
 	/**
 	 * Create a node path representation in graph notation.<br>
@@ -37,19 +52,21 @@ public class NodePath {
 	 * @param parent Parent of the node. If node not got a parent, pass <code>null</code>
 	 */
 	public NodePath(String node, NodePath parent) {
-		this.node = node;
-		this.parent = parent;
-		determineFullPath();
+		this(node, parent, false, false, -1);
 	}
 
 	private void determineFullPath() {
 		if (parent == null) {
 			this.path = node;
 		} else {
-			StringJoiner fullPath = new StringJoiner(".");
-			fullPath.add(parent.getPath());
-			fullPath.add(node);
-			this.path = fullPath.toString();
+			if (isCollectionItem()) {
+				this.path = parent.getPath() + node;
+			} else {
+				StringJoiner fullPath = new StringJoiner(".");
+				fullPath.add(parent.getPath());
+				fullPath.add(node);
+				this.path = fullPath.toString();
+			}
 		}
 	}
 	
@@ -78,21 +95,17 @@ public class NodePath {
 	}
 	
 	/**
-	 * Get method reference to access property represented by this path
-	 */
-	public Method getMethod() {
-		return method;
-	}
-
-	void setMethod(Method method) {
-		this.method = method;
-	}
-	
-	/**
 	 * Determine whether the property represented by this path is a collection
 	 */
 	public boolean isCollection() {
 		return collection;
+	}
+	
+	/**
+	 * Determine if this path represents a collection item
+	 */
+	public boolean isCollectionItem() {
+		return collectionItem;
 	}
 	
 	void setCollection(boolean collection) {
@@ -135,30 +148,6 @@ public class NodePath {
 	}
 	
 	/**
-	 * Get value of the property representend by this path, could be null
-	 * @return Value of the property representend by this path, could be null
-	 */
-	public Object getValue() {
-		return value;
-	}
-	
-	void setValue(Object value) {
-		this.value = value;
-	}
-	
-	/**
-	 * Get first non null element in collection. This attribute are is fill when this path represents a collection.
-	 * @return First non null element in collection. This attribute are is fill when this path represents a collection.
-	 */
-	public Object getFirstNonNullValueInCollection() {
-		return firstNonNullValueInCollection;
-	}
-	
-	void setFirstNonNullValueInCollection(Object firstNonNullValueInCollection) {
-		this.firstNonNullValueInCollection = firstNonNullValueInCollection;
-	}
-	
-	/**
 	 * Determine whether this element is root of the path
 	 * @return <code>true</code>If this element is root, otherwise return <code>false</code> 
 	 */
@@ -171,13 +160,13 @@ public class NodePath {
 	 * @return Iterator for node path, from root parent to node
 	 */
 	public Iterator<NodePath> iterator() {
-		List<NodePath> pathTrace = new ArrayList<>();
+		List<NodePath> pathTrack = new ArrayList<>();
 		NodePath current = this;
 		while (current != null) {
-			pathTrace.add(0, current);
+			pathTrack.add(0, current);
 			current = current.getParent();
 		}
-		return pathTrace.iterator();
+		return pathTrack.iterator();
 	}
 
 	@Override
@@ -212,20 +201,50 @@ public class NodePath {
 		NodePath last = null;
 		for (String node : nodes) {
 			int index = -1;
-			boolean collection = false;
+			boolean collectionItem = false;
 			Matcher colNotationMatcher = COLLECTION_NOTATION.matcher(node);
 			if (colNotationMatcher.find()) {
-				collection = true;
-				node = colNotationMatcher.group(1);
+				/*
+				 * create a node for refer a node in collection and add the node as child
+				 */
+				String collectionNode = colNotationMatcher.group(1);
+				if (collectionNode != null && !collectionNode.trim().isEmpty()) {
+					parent = new NodePath(collectionNode, parent, true, false, -1);
+				}
+				collectionItem = true;
 				index = Integer.parseInt(colNotationMatcher.group(2));
+				node = String.format("[%d]", index);
 			}
 			path.add(node);
-			last = new NodePath(node, parent);
-			last.setCollection(collection);
-			last.setIndex(index);
+			last = new NodePath(node, parent, false, collectionItem, index);
 			parent = last;
 		}
 		return last;
+	}
+
+	public boolean isSame(NodePath path) {
+		Iterator<NodePath> thisIt = this.iterator();
+		Iterator<NodePath> otherIt = path.iterator();
+		boolean lastComp = false;
+		while (thisIt.hasNext()) {
+			NodePath pathThis = thisIt.next();
+			if (!otherIt.hasNext()) {
+				return lastComp;
+			}
+			NodePath pathOther = otherIt.next();
+			if (pathOther.isCollectionItem()) {
+				pathOther = otherIt.next();
+			}
+			lastComp = pathThis.getNode().equals(pathOther.getNode());
+			if (!lastComp) {
+				return false;
+			}
+		}
+		//limit to this path. if other path contains more path node, indicates that path is not same or equivalent to this
+		if (otherIt.hasNext()) {
+			return false;
+		}
+		return lastComp;
 	}
 	
 }
