@@ -25,6 +25,7 @@ mvn clean package
 ```
 The jar package is available in target/ directory.
 
+<strong>Java 1.8 is required</strong>
 
 ## Quick start
 The 'default object graph predicate' automatically include all properties of the types in object graph: <br/>
