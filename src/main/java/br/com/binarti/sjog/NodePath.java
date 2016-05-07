@@ -228,6 +228,10 @@ public class NodePath {
 		boolean lastComp = false;
 		while (thisIt.hasNext()) {
 			NodePath pathThis = thisIt.next();
+			//next item if is collection to ignore indexed item like "[0]"
+			if (pathThis.isCollectionItem()) {
+				pathThis = thisIt.next();
+			}
 			if (!otherIt.hasNext()) {
 				return lastComp;
 			}

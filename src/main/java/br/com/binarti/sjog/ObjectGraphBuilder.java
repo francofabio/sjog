@@ -16,23 +16,20 @@ import java.util.TreeSet;
  */
 public class ObjectGraphBuilder {
 
-	@SuppressWarnings("unused")
-	private Class<?> rootClass;
 	private ObjectGraphPredicate predicate;
-	private Set<NodePath> includes;
+	private Set<String> includes;
 	private Set<String> excludes;
 	private Map<String, Boolean> autoIncludePrimitives;
 	
-	public ObjectGraphBuilder(Class<?> rootClass, ObjectGraphPredicate objectGraphPredicate) {
-		this.rootClass = rootClass;
+	public ObjectGraphBuilder(ObjectGraphPredicate objectGraphPredicate) {
 		this.predicate = objectGraphPredicate;
-		this.includes = new TreeSet<>((NodePath p1, NodePath p2) -> p1.getPath().compareTo(p2.getPath()));
-		this.excludes = new TreeSet<>((String s1, String s2) -> s1.compareTo(s2));
+		this.includes = new TreeSet<>();
+		this.excludes = new TreeSet<>();
 		this.autoIncludePrimitives = new HashMap<>();
 	}
 	
-	public ObjectGraphBuilder(Class<?> rootClass) {
-		this(rootClass, getDefaultObjectGraphPredicate());
+	public ObjectGraphBuilder() {
+		this(getDefaultObjectGraphPredicate());
 	}
 	
 	/**
@@ -41,9 +38,8 @@ public class ObjectGraphBuilder {
 	 * @param name Property name to include. Could be nested property
 	 */
 	public ObjectGraphBuilder include(String name) {
-		NodePath path = NodePath.create(name);
-		if (!includes.contains(path)) {
-			includes.add(path);
+		if (!includes.contains(name)) {
+			includes.add(name);
 		}
 		return this;
 	}
@@ -97,13 +93,21 @@ public class ObjectGraphBuilder {
 	}
 	
 	/**
+	 * Create a object graph context using configured data in this builder
+	 * @return Object graph context with included, excluded and auto include primitives configuration in this builder
+	 */
+	public ObjectGraphContext buildContext() {
+		return new ObjectGraphContext(predicate, includes, excludes, autoIncludePrimitives);
+	}
+	
+	/**
 	 * Build an object graph for a given object</br>
 	 * 
 	 * @param root The object
 	 * @return An object graph for a given object
 	 */
 	public ObjectGraph build(Object root) {
-		ObjectGraphContext context = new ObjectGraphContext(predicate, includes, excludes, autoIncludePrimitives);
+		ObjectGraphContext context = buildContext();
 		ObjectGraph objectGraph = new ObjectGraph(root, context);
 		return objectGraph;
 	}

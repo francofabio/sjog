@@ -13,7 +13,7 @@ And add this dependency in your pom.xml
 <dependency>
     <groupId>br.com.binarti</groupId>
     <artifactId>sjog</artifactId>
-    <version>1.0</version> <!-- or the last version -->
+    <version>1.1.0</version> <!-- or the last version -->
 </dependency>
 ```
 
@@ -39,7 +39,7 @@ private static class Person {
     //getters and setters omitted
 }
 
-ObjectGraph objectGraph = new ObjectGraphBuilder(Person.class)
+ObjectGraph objectGraph = new ObjectGraphBuilder()
         .build(new Person("John Galt", 43);
 String name = (String) objectGraph.get("name"); //get name property value by name
 Integer age = (Integer) objectGraph.get("age"); //get age property value by name
@@ -67,7 +67,7 @@ private static class Item {
 Order order = new Order(129, new Person("Kane"), new Date(), 1650d);
 order.addItem(new Item(1, "MacBook pro 13"));
 order.addItem(new Item(2, "iPad Air 2"));
-ObjectGraph orderObjectGraph = new ObjectGraphBuilder(Order.class)
+ObjectGraph orderObjectGraph = new ObjectGraphBuilder()
         .include("customer") //include all properties of the java basic type presents in customer object
         .include("itens") //include all properties of the java basic type presents in itens (considering generic type of the collection or the collection content)
         .build(order);

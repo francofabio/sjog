@@ -24,6 +24,7 @@ public class Node {
 	private ObjectGraphContext context;
 	private boolean collection;
 	private Node parent;
+	private boolean primitive;
 	
 	/**
 	 * Create a node
@@ -38,6 +39,7 @@ public class Node {
 		this.path = path;
 		this.children = new ArrayList<>();
 		this.expanded = false;
+		this.primitive = false;
 	}
 	
 	public Node(String name, Node parent, NodePath path, Object value, ObjectGraphContext context, boolean collection) {
@@ -98,6 +100,13 @@ public class Node {
 	}
 	
 	/**
+	 * Determine if this node represents an primitive data
+	 */
+	public boolean isPrimitive() {
+		return primitive;
+	}
+	
+	/**
 	 * Get node value
 	 * @return Node value
 	 */
@@ -153,7 +162,6 @@ public class Node {
 	
 	private static void expand(Object value, Node node, ObjectGraphContext context) {
 		if (value != null && context.getPredicate().hasChild(value.getClass())) {
-			boolean autoIncludeRootPrimitives = context.autoIncludePrimitives(node.name);
 			Reflect.of(value.getClass()).getters().forEach(m -> {
 				boolean isPrimitive = context.getPredicate().isPrimitive(m.getReturnType());
 				boolean isRootChild = (node.name != null && node.name.equals(ROOT_NODE));
@@ -164,12 +172,13 @@ public class Node {
 				NodePath path  = NodePath.create(fullPath.toString());
 				boolean excluded = context.excluded(path.getPath(), isPrimitive, isRootChild);
 				if (!excluded) {
-					boolean included = context.included(path.getPath());
-					if ((isPrimitive && autoIncludeRootPrimitives) || included) {
+					boolean included = context.included(path.getPath(), isPrimitive);
+					if (included) {
 						Node childNode = new Node(propertyName, node, path, null, context, false);
 						NodeValue nodeValue = getValue(childNode, value);
 						childNode.value = nodeValue.getValue();
 						childNode.collection = context.getPredicate().isCollection(nodeValue.getType());
+						childNode.primitive = isPrimitive;
 						node.children.add(childNode);
 					}
 				}
@@ -215,6 +224,9 @@ public class Node {
 					String itemPath = "["+i+"]";
 					String fullPath = path.getPath() + itemPath;
 					Node itemNode = new Node(itemPath, this, NodePath.create(fullPath), itemValue, context, isCollection);
+					if (itemValue != null) {
+						itemNode.primitive = context.getPredicate().isPrimitive(itemValue.getClass());
+					}
 					this.children.add(itemNode);
 					expand(itemValue, itemNode, context);
 				}
